@@ -1,16 +1,13 @@
-# PyRoboSim
+# PyRoboSim Rigel example
 
-[![PyRoboSim Tests](https://github.com/sea-bass/pyrobosim/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/sea-bass/pyrobosim/actions/workflows/tests.yml)
-[![Documentation Status](https://readthedocs.org/projects/pyrobosim/badge/?version=latest)](https://pyrobosim.readthedocs.io/en/latest/?badge=latest)
-![Coverage Status](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/sea-bass/3761a8aa05af7b0e8c84210b9d103df8/raw/pyrobosim-test-coverage.json)
+This repository contains an example of how to use Rigel with a more complex ROS application.
 
-ROS 2 enabled 2D mobile robot simulator for behavior prototyping.
+[Original project](https://github.com/sea-bass/pyrobosim) is maintained by Sebastian Castro. A copy of the original license can be found [here](./LICENSE-original.md). Refer to the [full documentation](https://pyrobosim.readthedocs.io/) of PyRoboSim for setup, usage, and other concepts.
 
-By Sebastian Castro, 2022-2025
+## Usage
 
-Refer to the [full documentation](https://pyrobosim.readthedocs.io/) for setup, usage, and other concepts.
+TODO
 
-We look forward to your open-source contributions to PyRoboSim.
-For more information, refer to the [contributor guide](CONTRIBUTING.md).
+## Video
 
-![Example animation of the simulator](docs/source/media/pyrobosim_demo.gif)
+TODO
