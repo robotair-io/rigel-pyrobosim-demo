@@ -1,0 +1,12 @@
+PySide6>=6.4.0
+PyYAML
+adjustText
+astar
+matplotlib
+numpy
+pycollada
+scipy
+shapely>=2.0.1
+transforms3d
+trimesh
+typing_extensions

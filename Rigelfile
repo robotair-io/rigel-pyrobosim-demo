@@ -1,0 +1,81 @@
+vars:
+    distro: "jazzy"
+    image: "robotair/pyrobosim_demo"
+    ros_ws_dir: "/home/rigeluser/ros_workspace"
+    # Plugin definitions
+    dockerfile_plugin: "rigel.plugins.core.DockerfilePlugin"
+    buildx_plugin: "rigel.plugins.core.BuildXPlugin"
+    compose_plugin: "rigel.plugins.core.ComposePlugin"
+    test_plugin: "rigel.plugins.core.UnitTestPlugin"
+    scout_plugin: "rigel.plugins.core.ScoutPlugin"
+    cosign_plugin: "rigel.plugins.core.CosignPlugin"
+    # The following should be kept private and set through environment variables / CI secrets
+    REGISTRY_USERNAME: "robotair"
+    REGISTRY_PASSWORD: "<redacted>"
+    REGISTRY_ORG_NAME: "robotair"
+    COSIGN_PASSWORD: "<redacted>"
+
+application:
+    distro: "{{ vars.distro }}"
+
+# Required to login to a registry
+# TODO - Fix later to be used with skopeo
+# providers:
+#     container_registry_provider_1:
+#         provider: "rigel.providers.core.ContainerRegistryProvider"
+#         with:
+#             server: "https://index.docker.io/v1/"
+#             username: "{{ vars.REGISTRY_USERNAME }}"
+#             password: "{{ vars.REGISTRY_PASSWORD }}"
+
+jobs:
+    dockerfile:
+        plugin: "{{ vars.dockerfile_plugin }}"
+        with:
+            command: "ros2 launch turtle_draw turtle-draw-bringup.launch.py"
+            compiler:
+                name: "colcon"
+            apt:
+                - apt-utils
+                - cmake 
+                - ffmpeg 
+                - libsm6 
+                - libxext6
+                - python3-pip
+                - python3-tk
+                - libegl1
+                - libgl1-mesa-dev
+                - libglu1-mesa-dev
+                - "'^libxcb.*-dev'"
+                - libx11-xcb-dev
+                - libxi-dev
+                - libxkbcommon-dev
+                - libxkbcommon-x11-dev
+                - libxrender-dev
+            docker_run
+            entrypoint:
+                - "PDDLSTREAM_PATH={{ vars.ros_ws_dir }}/src/dependencies/pddlstream"
+                - "if [ -d '$PDDLSTREAM_PATH' ]"
+                - "then"
+                - "    export PYTHONPATH=$PDDLSTREAM_PATH:$PYTHONPATH"
+                - "fi"
+
+    build:
+        plugin: "{{ vars.buildx_plugin }}"
+        with:
+            image: "{{ vars.image }}"
+            tags:
+                - "latest"
+            load: True
+            platforms:
+                - "linux/amd64"
+
+    test:
+        plugin: "{{ vars.test_plugin }}"
+        with:
+            image: "{{ vars.image }}"
+            tag: "latest"
+            std_output: True
+            compiler: "colcon"
+            pip: "test/python_test_requirements.txt"
+            before_script: "test/run_tests.bash"
