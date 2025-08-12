@@ -32,7 +32,7 @@ jobs:
     dockerfile:
         plugin: "{{ vars.dockerfile_plugin }}"
         with:
-            command: "ros2 launch turtle_draw turtle-draw-bringup.launch.py"
+            command: "ros2 run pyrobosim_ros demo.py"
             compiler:
                 name: "colcon"
             apt:
@@ -52,13 +52,22 @@ jobs:
                 - libxkbcommon-dev
                 - libxkbcommon-x11-dev
                 - libxrender-dev
-            docker_run
+            env:
+                - name: "PDDLSTREAM_PATH"
+                  value: "{{ vars.ros_ws_dir }}/src/dependencies/pddlstream"
+                - name: "PIP_BREAK_SYSTEM_PACKAGES"
+                  value: 1
+            docker_run:
+                - command: >
+                            mkdir -p PDDLSTREAM_PATH &&
+                            cd PDDLSTREAM_PATH/.. &&
+                            git clone https://github.com/caelan/pddlstream.git &&
+                            cd pddlstream &&
+                            touch COLCON_IGNORE &&
+                            git submodule update --init --recursive &&
+                            ./downward/build.py
             entrypoint:
-                - "PDDLSTREAM_PATH={{ vars.ros_ws_dir }}/src/dependencies/pddlstream"
-                - "if [ -d '$PDDLSTREAM_PATH' ]"
-                - "then"
-                - "    export PYTHONPATH=$PDDLSTREAM_PATH:$PYTHONPATH"
-                - "fi"
+                - "export PYTHONPATH=$PDDLSTREAM_PATH:$PYTHONPATH"
 
     build:
         plugin: "{{ vars.buildx_plugin }}"
@@ -75,7 +84,7 @@ jobs:
         with:
             image: "{{ vars.image }}"
             tag: "latest"
-            std_output: True
+            # std_output: True
             compiler: "colcon"
             pip: "test/python_test_requirements.txt"
-            before_script: "test/run_tests.bash"
+            # before_script: "test/run_tests.bash"

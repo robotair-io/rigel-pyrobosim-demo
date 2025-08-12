@@ -20,16 +20,8 @@ set -o pipefail
 
 # Run regular pytest tests
 echo "Running Python package unit tests..."
-pushd "${SCRIPT_DIR}/../pyrobosim" || exit
-python3 -m pytest . \
-    --cov="pyrobosim" --cov-branch \
-    --cov-report term \
-    --cov-report html:"${TEST_RESULTS_DIR}/test_results_coverage_html" \
-    --cov-report xml:"${TEST_RESULTS_DIR}/test_results_coverage.xml" \
-    --junitxml="${TEST_RESULTS_DIR}/test_results.xml" \
-    --html="${TEST_RESULTS_DIR}/test_results.html" \
-    --self-contained-html \
-    | tee "${TEST_RESULTS_DIR}/pytest-coverage.txt" || SUCCESS=$?
+pushd "${SCRIPT_DIR}/src/pyrobosim/pyrobosim" || exit
+python3 -m pytest . --cov="pyrobosim"
 echo ""
 popd || exit
 
