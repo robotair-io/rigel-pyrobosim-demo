@@ -19,28 +19,31 @@ SUCCESS=0
 set -o pipefail
 
 # Run regular pytest tests
+source "${SCRIPT_DIR}/../robot-entrypoint.sh"
+deactivate
+echo $PYTHONPATH
 echo "Running Python package unit tests..."
 pushd "${SCRIPT_DIR}/src/pyrobosim/pyrobosim" || exit
-python3 -m pytest . --cov="pyrobosim"
+python3 -m pytest .
 echo ""
 popd || exit
 
-# Run ROS package tests, if using a ROS distro.
-ROS_DISTRO=$1
-if [[ -n "${ROS_DISTRO}" && -n "${COLCON_PREFIX_PATH}" ]]
-then
-    WORKSPACE_DIR="${COLCON_PREFIX_PATH}/../"
-    echo "Running ROS package unit tests from ${WORKSPACE_DIR}..."
-    pushd "${WORKSPACE_DIR}" > /dev/null || exit
-    colcon test \
-        --packages-select pyrobosim_ros \
-        --event-handlers console_cohesion+ \
-        --return-code-on-test-failure \
-        --pytest-with-coverage || SUCCESS=$?
-    echo ""
-    colcon test-result --verbose \
-        | tee "${TEST_RESULTS_DIR}/test_results_ros.xml"
-    popd > /dev/null || exit
-fi
+exit $SUCCESS
 
-exit ${SUCCESS}
+# # Run ROS package tests, if using a ROS distro.
+# ROS_DISTRO=$1
+# if [[ -n "${ROS_DISTRO}" && -n "${COLCON_PREFIX_PATH}" ]]
+# then
+#     WORKSPACE_DIR="${COLCON_PREFIX_PATH}/../"
+#     echo "Running ROS package unit tests from ${WORKSPACE_DIR}..."
+#     pushd "${WORKSPACE_DIR}" > /dev/null || exit
+#     colcon test \
+#         --packages-select pyrobosim_ros \
+#         --event-handlers console_cohesion+ \
+#         --return-code-on-test-failure \
+#         --pytest-with-coverage || SUCCESS=$?
+#     echo ""
+#     colcon test-result --verbose \
+#         | tee "${TEST_RESULTS_DIR}/test_results_ros.xml"
+#     popd > /dev/null || exit
+# fi

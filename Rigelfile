@@ -54,7 +54,7 @@ jobs:
                 - libxrender-dev
             env:
                 - name: "PDDLSTREAM_PATH"
-                  value: "{{ vars.ros_ws_dir }}/src/dependencies/pddlstream"
+                  value: "{{ vars.ros_ws_dir }}/src/pyrobosim/dependencies/pddlstream"
                 - name: "PIP_BREAK_SYSTEM_PACKAGES"
                   value: 1
             docker_run:
@@ -84,7 +84,8 @@ jobs:
         with:
             image: "{{ vars.image }}"
             tag: "latest"
-            # std_output: True
+            std_output: True
             compiler: "colcon"
             pip: "test/python_test_requirements.txt"
-            # before_script: "test/run_tests.bash"
+            before_script: "test/run_tests.bash"
+            packages: ["pyrobosim_ros"]
