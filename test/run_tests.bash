@@ -22,8 +22,10 @@ set -o pipefail
 source "${SCRIPT_DIR}/../robot-entrypoint.sh"
 deactivate
 echo $PYTHONPATH
+ls /home/rigeluser/ros_workspace/src/rigel-pyrobosim-demo/dependencies/pddlstream
+ls /home/rigeluser/ros_workspace/src/
 echo "Running Python package unit tests..."
-pushd "${SCRIPT_DIR}/src/pyrobosim/pyrobosim" || exit
+pushd "${SCRIPT_DIR}/src/rigel-pyrobosim-demo/pyrobosim" || exit
 python3 -m pytest .
 echo ""
 popd || exit
