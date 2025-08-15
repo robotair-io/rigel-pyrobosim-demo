@@ -1,6 +1,6 @@
 vars:
     distro: "jazzy"
-    image: "robotair/pyrobosim_demo"
+    image: "pyrobosim_demo"
     ros_ws_dir: "/home/rigeluser/ros_workspace"
     # Plugin definitions
     dockerfile_plugin: "rigel.plugins.core.DockerfilePlugin"
@@ -10,23 +10,19 @@ vars:
     scout_plugin: "rigel.plugins.core.ScoutPlugin"
     cosign_plugin: "rigel.plugins.core.CosignPlugin"
     # The following should be kept private and set through environment variables / CI secrets
-    REGISTRY_USERNAME: "robotair"
-    REGISTRY_PASSWORD: "<redacted>"
-    REGISTRY_ORG_NAME: "robotair"
-    COSIGN_PASSWORD: "<redacted>"
+    REGISTRY_USERNAME: "robotair-io"
+    REGISTRY_ORG_NAME: "robotair-io"
 
 application:
     distro: "{{ vars.distro }}"
 
-# Required to login to a registry
-# TODO - Fix later to be used with skopeo
-# providers:
-#     container_registry_provider_1:
-#         provider: "rigel.providers.core.ContainerRegistryProvider"
-#         with:
-#             server: "https://index.docker.io/v1/"
-#             username: "{{ vars.REGISTRY_USERNAME }}"
-#             password: "{{ vars.REGISTRY_PASSWORD }}"
+providers:
+    container_registry_provider_1:
+        provider: "rigel.providers.core.ContainerRegistryProvider"
+        with:
+            server: "https://ghcr.io/"
+            username: "{{ vars.REGISTRY_USERNAME }}"
+            password: "{{ vars.REGISTRY_PASSWORD }}"
 
 jobs:
     dockerfile:
@@ -89,3 +85,11 @@ jobs:
             pip: "test/python_test_requirements.txt"
             before_script: "test/run_tests.bash"
             packages: ["pyrobosim_ros"]
+
+sequences:
+    robotair:
+        stages:
+            - jobs:
+                - "dockerfile"
+                - "build"
+                - "test"

@@ -1,0 +1,49 @@
+name: Deploy ROS application 🚀
+
+on:
+
+  push:
+    branches:
+      - master
+
+  pull_request:
+    branches:
+      - master
+
+jobs:
+
+  robotair:
+
+    name: Deploy ROS application
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Export repository secrets as environment variables
+        uses: oNaiPs/secrets-to-env-action@v1.4
+        with:
+          secrets: ${{ toJSON(secrets) }}
+      
+      - name: Clone and install Rigel
+        env:
+          TOKEN: ${{ secrets.PRIVATE_ACCESS_TOKEN }}
+        run: |
+          git clone https://${TOKEN}@github.com/robotair-io/rigel.git --branch test/unit-test-plugin
+          pip install ./rigel
+        
+      #-----------------------------------------------------------#
+      # Modify from here based on your Rigelfile
+      #-----------------------------------------------------------#
+      - name: Show Docker file generated
+        run: |
+          rigel run job dockerfile 
+          cat Dockerfile
+
+      - name: Build and Unit tests ROS application using Rigel
+        run: rigel run sequence robotair
+        #-----------------------------------------------------------#
+        # Modify until here based on your Rigelfile
+       #-----------------------------------------------------------#
