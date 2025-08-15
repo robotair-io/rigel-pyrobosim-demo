@@ -1,14 +1,6 @@
 name: Deploy ROS application 🚀
 
-on:
-
-  push:
-    branches:
-      - master
-
-  pull_request:
-    branches:
-      - master
+on: push
 
 jobs:
 
