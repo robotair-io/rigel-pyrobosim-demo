@@ -25,10 +25,7 @@ jobs:
         run: |
           git clone https://${TOKEN}@github.com/robotair-io/rigel.git --branch test/unit-test-plugin
           pip install ./rigel
-        
-      #-----------------------------------------------------------#
-      # Modify from here based on your Rigelfile
-      #-----------------------------------------------------------#
+      
       - name: Show Docker file generated
         run: |
           rigel run job dockerfile 
@@ -36,6 +33,6 @@ jobs:
 
       - name: Build and Unit tests ROS application using Rigel
         run: rigel run sequence robotair
-        #-----------------------------------------------------------#
-        # Modify until here based on your Rigelfile
-       #-----------------------------------------------------------#
+      
+      - name: Sign and verify Docker container using Rigel
+        run: rigel run sequence sign-and-verify

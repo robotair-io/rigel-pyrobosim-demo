@@ -9,6 +9,7 @@ vars:
     cosign_plugin: "rigel.plugins.core.CosignPlugin"
     REGISTRY_USERNAME: "robotair-io"
     REGISTRY_ORG_NAME: "robotair-io"
+    DISPLAY: ":1"
 
 application:
     distro: "{{ vars.distro }}"
@@ -107,6 +108,55 @@ jobs:
                   volumes:
                     - !!python/tuple ["/tmp/.X11-unix", "/tmp/.X11-unix:rw"]
 
+    cosign-generate-keys:
+        plugin: "{{ vars.cosign_plugin }}"
+        with:
+            command: "generate-key-pair"
+            options:
+                output-key-prefix: "/keys/cosign"
+            envs:
+                COSIGN_PASSWORD: "{{ vars.COSIGN_PASSWORD }}"
+            mounts:
+                - 
+                    source: "exampleKeys/"
+                    target: "/keys/"
+
+    cosign-sign:
+        plugin: "{{ vars.cosign_plugin }}"
+        with:
+            command: "sign"
+            args:
+                - "{{ vars.image }}"
+            options:
+                y: True
+                r: True
+                registry-username: "{{ vars.REGISTRY_ORG_NAME }}"
+                registry-password: "{{ vars.REGISTRY_PASSWORD }}"
+                key: "keys/cosign.key"
+            envs:
+                COSIGN_PASSWORD: "{{ vars.COSIGN_PASSWORD }}"
+            mounts:
+                - 
+                    source: "exampleKeys/"
+                    target: "/keys/"
+
+    cosign-verify:
+        plugin: "{{ vars.cosign_plugin }}"
+        with:
+            command: "verify"
+            args:
+                - "{{ vars.image }}"
+            options:
+                key: "keys/cosign.pub"
+                registry-username: "{{ vars.REGISTRY_ORG_NAME }}"
+                registry-password: "{{ vars.REGISTRY_PASSWORD }}"
+            envs:
+                COSIGN_PASSWORD: "{{ vars.COSIGN_PASSWORD }}"
+            mounts:
+                -
+                    source: "exampleKeys/"
+                    target: "/keys/"
+
 sequences:
     robotair:
         stages:
@@ -114,3 +164,9 @@ sequences:
                 - "dockerfile"
                 - "build"
                 - "test"
+    sign-and-verify:
+        stages:
+            - jobs:
+                - "cosign-generate-keys"
+                - "cosign-sign"
+                - "cosign-verify"
