@@ -8,8 +8,8 @@ vars:
     scout_plugin: "rigel.plugins.core.ScoutPlugin"
     cosign_plugin: "rigel.plugins.core.CosignPlugin"
     REGISTRY_USERNAME: "robotair-io"
-    REGISTRY_ORG_NAME: "robotair-io"
     DISPLAY: ":1"
+    image_path: "ghcr.io/{{ vars.REGISTRY_USERNAME }}/{{ vars.image }}"
 
 application:
     distro: "{{ vars.distro }}"
@@ -66,10 +66,9 @@ jobs:
     build:
         plugin: "{{ vars.buildx_plugin }}"
         with:
-            image: "{{ vars.image }}"
+            image: "{{ vars.image_path }}"
             tags:
                 - "latest"
-            load: True
             push: True
             platforms:
                 - "linux/amd64"
@@ -77,7 +76,7 @@ jobs:
     test:
         plugin: "{{ vars.test_plugin }}"
         with:
-            image: "{{ vars.image }}"
+            image: "{{ vars.image_path }}"
             tag: "latest"
             std_output: True
             compiler: "colcon"
@@ -90,7 +89,7 @@ jobs:
         with:
             components:
                 - name: "demo"
-                  image: "{{ vars.image }}"
+                  image: "{{ vars.image_path }}"
                   command: ["bash", "-l", "-c", "ros2 launch pyrobosim_ros demo.launch.py"]
                   envs:
                     DISPLAY: "{{ vars.DISPLAY }}"
@@ -102,7 +101,7 @@ jobs:
         with:
             components:
                 - name: "demo"
-                  image: "{{ vars.image }}"
+                  image: "{{ vars.image_path }}"
                   command: ["bash", "-l", "-c", "ros2 launch pyrobosim_ros demo_commands_multirobot.launch.py"]
                   envs:
                     DISPLAY: "{{ vars.DISPLAY }}"
@@ -127,11 +126,11 @@ jobs:
         with:
             command: "sign"
             args:
-                - "ghcr.io/{{ vars.REGISTRY_ORG_NAME }}/{{ vars.image }}"
+                - "{{ vars.image_path }}"
             options:
                 y: True
                 r: True
-                registry-username: "{{ vars.REGISTRY_ORG_NAME }}"
+                registry-username: "{{ vars.REGISTRY_USERNAME }}"
                 registry-password: "{{ vars.REGISTRY_PASSWORD }}"
                 key: "keys/cosign.key"
             envs:
@@ -146,10 +145,10 @@ jobs:
         with:
             command: "verify"
             args:
-                - "ghcr.io/{{ vars.REGISTRY_ORG_NAME }}/{{ vars.image }}"
+                - "{{ vars.image_path }}"
             options:
                 key: "keys/cosign.pub"
-                registry-username: "{{ vars.REGISTRY_ORG_NAME }}"
+                registry-username: "{{ vars.REGISTRY_USERNAME }}"
                 registry-password: "{{ vars.REGISTRY_PASSWORD }}"
             envs:
                 COSIGN_PASSWORD: "{{ vars.COSIGN_PASSWORD }}"
