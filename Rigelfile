@@ -70,6 +70,7 @@ jobs:
             tags:
                 - "latest"
             load: True
+            push: True
             platforms:
                 - "linux/amd64"
 
@@ -126,7 +127,7 @@ jobs:
         with:
             command: "sign"
             args:
-                - "{{ vars.image }}"
+                - "ghcr.io/{{ vars.REGISTRY_ORG_NAME }}/{{ vars.image }}"
             options:
                 y: True
                 r: True
@@ -145,7 +146,7 @@ jobs:
         with:
             command: "verify"
             args:
-                - "{{ vars.image }}"
+                - "ghcr.io/{{ vars.REGISTRY_ORG_NAME }}/{{ vars.image }}"
             options:
                 key: "keys/cosign.pub"
                 registry-username: "{{ vars.REGISTRY_ORG_NAME }}"

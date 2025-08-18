@@ -30,3 +30,5 @@ test/results/
 
 Dockerfile
 dockerfile_entrypoint.sh
+
+exampleKeys/
