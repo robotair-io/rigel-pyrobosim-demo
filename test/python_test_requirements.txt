@@ -5,3 +5,17 @@ pytest-cov
 pytest-dependency
 pytest-html
 setuptools>=78.1.1,<80.0.0  # See https://github.com/pypa/setuptools/issues/4971
+colcon-common-extensions
+pyrobosim
+PySide6>=6.4.0
+PyYAML
+adjustText
+astar
+matplotlib
+numpy
+pycollada
+scipy
+shapely>=2.0.1
+transforms3d
+trimesh
+typing_extensions

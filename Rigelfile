@@ -1,0 +1,172 @@
+vars:
+    distro: "jazzy"
+    image: "pyrobosim_demo"
+    dockerfile_plugin: "rigel.plugins.core.DockerfilePlugin"
+    buildx_plugin: "rigel.plugins.core.BuildXPlugin"
+    compose_plugin: "rigel.plugins.core.ComposePlugin"
+    test_plugin: "rigel.plugins.core.UnitTestPlugin"
+    scout_plugin: "rigel.plugins.core.ScoutPlugin"
+    cosign_plugin: "rigel.plugins.core.CosignPlugin"
+    REGISTRY_USERNAME: "robotair-io"
+    DISPLAY: ":1"
+    image_path: "ghcr.io/{{ vars.REGISTRY_USERNAME }}/{{ vars.image }}"
+
+application:
+    distro: "{{ vars.distro }}"
+
+providers:
+    container_registry_provider_1:
+        provider: "rigel.providers.core.ContainerRegistryProvider"
+        with:
+            server: "https://ghcr.io/"
+            username: "{{ vars.REGISTRY_USERNAME }}"
+            password: "{{ vars.REGISTRY_PASSWORD }}"
+
+jobs:
+    dockerfile:
+        plugin: "{{ vars.dockerfile_plugin }}"
+        with:
+            command: "ros2 run pyrobosim_ros demo.py"
+            compiler:
+                name: "colcon"
+            apt:
+                - apt-utils
+                - cmake 
+                - ffmpeg 
+                - libsm6 
+                - libxext6
+                - python3-pip
+                - python3-tk
+                - libegl1
+                - libgl1-mesa-dev
+                - libglu1-mesa-dev
+                - "'^libxcb.*-dev'"
+                - libx11-xcb-dev
+                - libxi-dev
+                - libxkbcommon-dev
+                - libxkbcommon-x11-dev
+                - libxrender-dev
+            env:
+                - name: "PDDLSTREAM_PATH"
+                  value: "/home/rigeluser/ros_workspace/src/rigel-pyrobosim-demo/dependencies/pddlstream"
+                - name: "PIP_BREAK_SYSTEM_PACKAGES"
+                  value: 1
+            docker_run:
+                - command: >
+                            mkdir -p $PDDLSTREAM_PATH &&
+                            cd $PDDLSTREAM_PATH/.. &&
+                            git clone https://github.com/caelan/pddlstream.git &&
+                            cd pddlstream &&
+                            touch COLCON_IGNORE &&
+                            git submodule update --init --recursive &&
+                            ./downward/build.py
+            entrypoint:
+                - "export PYTHONPATH=$PDDLSTREAM_PATH:$PYTHONPATH"
+
+    build:
+        plugin: "{{ vars.buildx_plugin }}"
+        with:
+            image: "{{ vars.image_path }}"
+            tags:
+                - "latest"
+            push: True
+            platforms:
+                - "linux/amd64"
+
+    test:
+        plugin: "{{ vars.test_plugin }}"
+        with:
+            image: "{{ vars.image_path }}"
+            tag: "latest"
+            std_output: True
+            compiler: "colcon"
+            pip: "test/python_test_requirements.txt"
+            before_script: "test/run_tests.bash"
+            packages: ["pyrobosim_ros"]
+
+    run-demo:
+        plugin: "{{ vars.compose_plugin}}"
+        with:
+            components:
+                - name: "demo"
+                  image: "{{ vars.image_path }}"
+                  command: ["bash", "-l", "-c", "ros2 launch pyrobosim_ros demo.launch.py"]
+                  envs:
+                    DISPLAY: "{{ vars.DISPLAY }}"
+                  volumes:
+                    - !!python/tuple ["/tmp/.X11-unix", "/tmp/.X11-unix:rw"]
+
+    run-demo-multirobot:
+        plugin: "{{ vars.compose_plugin}}"
+        with:
+            components:
+                - name: "demo"
+                  image: "{{ vars.image_path }}"
+                  command: ["bash", "-l", "-c", "ros2 launch pyrobosim_ros demo_commands_multirobot.launch.py"]
+                  envs:
+                    DISPLAY: "{{ vars.DISPLAY }}"
+                  volumes:
+                    - !!python/tuple ["/tmp/.X11-unix", "/tmp/.X11-unix:rw"]
+
+    cosign-generate-keys:
+        plugin: "{{ vars.cosign_plugin }}"
+        with:
+            command: "generate-key-pair"
+            options:
+                output-key-prefix: "/keys/cosign"
+            envs:
+                COSIGN_PASSWORD: "{{ vars.COSIGN_PASSWORD }}"
+            mounts:
+                - 
+                    source: "exampleKeys/"
+                    target: "/keys/"
+
+    cosign-sign:
+        plugin: "{{ vars.cosign_plugin }}"
+        with:
+            command: "sign"
+            args:
+                - "{{ vars.image_path }}"
+            options:
+                y: True
+                r: True
+                registry-username: "{{ vars.REGISTRY_USERNAME }}"
+                registry-password: "{{ vars.REGISTRY_PASSWORD }}"
+                key: "keys/cosign.key"
+            envs:
+                COSIGN_PASSWORD: "{{ vars.COSIGN_PASSWORD }}"
+            mounts:
+                - 
+                    source: "exampleKeys/"
+                    target: "/keys/"
+
+    cosign-verify:
+        plugin: "{{ vars.cosign_plugin }}"
+        with:
+            command: "verify"
+            args:
+                - "{{ vars.image_path }}"
+            options:
+                key: "keys/cosign.pub"
+                registry-username: "{{ vars.REGISTRY_USERNAME }}"
+                registry-password: "{{ vars.REGISTRY_PASSWORD }}"
+            envs:
+                COSIGN_PASSWORD: "{{ vars.COSIGN_PASSWORD }}"
+            mounts:
+                -
+                    source: "exampleKeys/"
+                    target: "/keys/"
+
+sequences:
+    build-and-test:
+        stages:
+            - jobs:
+                - "dockerfile"
+                - "build"
+                - "test"
+    sign-and-verify:
+        stages:
+            - jobs:
+                - "cosign-generate-keys"
+                - "cosign-sign"
+                - "cosign-verify"

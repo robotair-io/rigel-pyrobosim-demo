@@ -1,13 +1,46 @@
-# Files and folders that don't need to be in the Docker build context.
-docker-compose.yaml
-dependencies/
-docker/Dockerfile
-test/results/
+# Default ignore patterns
+__pycache__/
+*.pyc
+*.pyo
 
-# Metadata that doesn't need to be in the Docker build context.
-*/__pycache__/
-*.egg-info
-.dockerignore
+# C++ build directories and artifacts
+build/
+dist/
+out/
+*.o
+*.a
+*.so
+*.d
+
+# Rigelfiles and other configuration files
+Rigelfile
+Rigelfile.*
+
+# Version control directories
 .git/
+.hg/
+.svn/
+
+# CI/CD files
 .github/
+.gitlab-ci.yml
+.travis.yml
+
+# Markdown files (documentation)
+*.md
+docs/
+
+# Editor/IDE files
+.idea/
 .vscode/
+
+# System-specific files
+.DS_Store
+Thumbs.db
+
+# Temporary and backup files
+*.bak
+*.swp
+*.tmp
+*.log
+
