@@ -33,5 +33,5 @@ jobs:
 
       - name: Build, test, and sign ROS application using Rigel
         run: |
-          rigel run sequence robotair
+          rigel run sequence build-and-test
           rigel run sequence sign-and-verify

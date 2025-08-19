@@ -84,7 +84,7 @@ jobs:
             before_script: "test/run_tests.bash"
             packages: ["pyrobosim_ros"]
 
-    run_demo:
+    run-demo:
         plugin: "{{ vars.compose_plugin}}"
         with:
             components:
@@ -96,7 +96,7 @@ jobs:
                   volumes:
                     - !!python/tuple ["/tmp/.X11-unix", "/tmp/.X11-unix:rw"]
 
-    run_demo_multirobot:
+    run-demo-multirobot:
         plugin: "{{ vars.compose_plugin}}"
         with:
             components:
@@ -158,7 +158,7 @@ jobs:
                     target: "/keys/"
 
 sequences:
-    robotair:
+    build-and-test:
         stages:
             - jobs:
                 - "dockerfile"

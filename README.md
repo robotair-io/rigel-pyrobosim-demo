@@ -31,11 +31,11 @@ To run unit tests inside the project
 rigel run job build
 ```
 
-To run some demo nodes from `pyrobosim_ros`, modify the `DISPLAY` variable to your system's, and use the `run_demo` and `run_demo_multirobot` jobs
+To run some demo nodes from `pyrobosim_ros`, modify the `DISPLAY` variable to your system's, and use the `run-demo` and `run-demo-multirobot` jobs
 
 ```bash
 xhost +local:docker # Ensure docker can access the DISPLAY
-rigel run job run_demo
+rigel run job run-demo
 ```
 
 To sign your remote image
