@@ -8,6 +8,7 @@ vars:
     scout_plugin: "rigel.plugins.core.ScoutPlugin"
     cosign_plugin: "rigel.plugins.core.CosignPlugin"
     REGISTRY_USERNAME: "robotair-io"
+    DH_USERNAME: "abbanfahim"
     DISPLAY: ":1"
     image_path: "ghcr.io/{{ vars.REGISTRY_USERNAME }}/{{ vars.image }}"
 
@@ -108,6 +109,45 @@ jobs:
                   volumes:
                     - !!python/tuple ["/tmp/.X11-unix", "/tmp/.X11-unix:rw"]
 
+    scout-sbom:
+        plugin: "{{ vars.scout_plugin }}"
+        with:
+            docker_scout:
+                command: "sbom"
+                args:
+                    - "{{ vars.image_path }}"
+                options:
+                    format: "list"
+            output_settings:
+                output_to_file: True
+                dir: "scout-output/"
+                timestamp: True
+                timestamp_format: "%d_%b_%Y"
+            container_settings:
+                dh_username: "{{ vars.DH_USERNAME }}"
+                dh_password: "{{ vars.DH_PASSWORD }}"
+                reg_username: "{{ vars.REGISTRY_USERNAME }}"
+                reg_password: "{{ vars.REGISTRY_PASSWORD }}"
+
+    scout-cves:
+        plugin: "{{ vars.scout_plugin }}"
+        with:
+            docker_scout:
+                command: "cves"
+                args:
+                    - "{{ vars.image_path }}"
+            output_settings:
+                output_to_file: True
+                dir: "scout-output/"
+                timestamp: True
+                timestamp_format: "%d_%b_%Y"
+            vulnerability_limits: { "critical": 3, "high": 20, "medium": 30, "low": 40 }
+            container_settings:
+                dh_username: "{{ vars.DH_USERNAME }}"
+                dh_password: "{{ vars.DH_PASSWORD }}"
+                reg_username: "{{ vars.REGISTRY_USERNAME }}"
+                reg_password: "{{ vars.REGISTRY_PASSWORD }}"
+    
     cosign-generate-keys:
         plugin: "{{ vars.cosign_plugin }}"
         with:

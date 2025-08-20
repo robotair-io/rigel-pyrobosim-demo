@@ -31,7 +31,10 @@ jobs:
           rigel run job dockerfile 
           cat Dockerfile
 
-      - name: Build, test, and sign ROS application using Rigel
+      - name: Build, test, generate SBOM, scan for vulnerabilities, and sign ROS application using Rigel
         run: |
           rigel run sequence build-and-test
           rigel run sequence sign-and-verify
+          rigel run job scout-sbom
+          rigel run job scout-cves
+          cat scout-output/*
