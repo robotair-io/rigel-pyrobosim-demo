@@ -123,6 +123,7 @@ jobs:
                 dir: "scout-output/"
                 timestamp: True
                 timestamp_format: "%d_%b_%Y"
+            vulnerability_limits: { "critical": 3, "high": 20, "medium": 30, "low": 40 }
             container_settings:
                 dh_username: "{{ vars.DH_USERNAME }}"
                 dh_password: "{{ vars.DH_PASSWORD }}"
