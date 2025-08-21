@@ -8,7 +8,11 @@ jobs:
 
     name: Deploy ROS application
     runs-on: ubuntu-latest
-
+    
+    container:
+      image: docker:24
+      options: --memory=4g --cpus=2
+    
     steps:
 
       - name: Checkout repository

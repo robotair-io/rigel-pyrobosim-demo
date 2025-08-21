@@ -19,7 +19,7 @@ providers:
     container_registry_provider_1:
         provider: "rigel.providers.core.ContainerRegistryProvider"
         with:
-            server: "https://ghcr.io/"
+            server: "https://ghcr.io/robotair-io"
             username: "{{ vars.REGISTRY_USERNAME }}"
             password: "{{ vars.REGISTRY_PASSWORD }}"
 
