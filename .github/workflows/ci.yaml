@@ -7,11 +7,7 @@ jobs:
   robotair:
 
     name: Deploy ROS application
-    runs-on: ubuntu-latest
-    
-    container:
-      image: docker:24
-      options: --memory=4g --cpus=2
+    runs-on: ubuntu-latests
     
     steps:
 
