@@ -43,7 +43,3 @@ To sign your remote image
 ```bash
 rigel run sequence sign-and-verify
 ```
-
-## Video
-
-TODO

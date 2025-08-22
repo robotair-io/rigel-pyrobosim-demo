@@ -21,6 +21,16 @@ vars:
     local_image_path: "localhost:5000/{{ vars.image_path }}"
     remote_image_path: "ghcr.io/{{ vars.image_path }}"
 
+    # Common lugin settings
+    scout_settings:
+        dh_username: "{{ vars.DH_USERNAME }}"
+        dh_password: "{{ vars.DH_PASSWORD }}"
+        reg_username: "{{ vars.REGISTRY_USERNAME }}"
+        reg_password: "{{ vars.REGISTRY_PASSWORD }}"
+    cosign_keys:
+        - source: "exampleKeys/"
+          target: "/keys/"
+
 # Configure the ROS distro
 application:
     distro: "{{ vars.distro }}"
@@ -76,6 +86,7 @@ jobs:
             entrypoint:
                 - "export PYTHONPATH=$PDDLSTREAM_PATH:$PYTHONPATH"
 
+    # Start a local registry server for assessing image
     local_registry:
         plugin: "{{ vars.compose_plugin }}"
         with:
@@ -85,6 +96,7 @@ jobs:
                   publish:
                     - !!python/tuple [5000, 5000]
 
+    # Build and push image to local registry
     build:
         plugin: "{{ vars.buildx_plugin }}"
         with:
@@ -95,6 +107,7 @@ jobs:
             platforms:
                 - "linux/amd64"
 
+    # Copy image from local to remote registry 
     push_to_remote:
         plugin: "{{ vars.skopeo_plugin }}"
         with:
@@ -110,6 +123,7 @@ jobs:
             runtime_settings:
                 network: "host"
 
+    # Run unit tests on ROS application
     test:
         plugin: "{{ vars.test_plugin }}"
         with:
@@ -121,6 +135,7 @@ jobs:
             before_script: "test/run_tests.bash"
             packages: ["pyrobosim_ros"]
 
+    # Example launch files from pyrobosim
     run-demo:
         plugin: "{{ vars.compose_plugin}}"
         with:
@@ -145,6 +160,7 @@ jobs:
                   volumes:
                     - !!python/tuple ["/tmp/.X11-unix", "/tmp/.X11-unix:rw"]
 
+    # Generate SBOM and vulnerbility report using docker scout
     scout-sbom:
         plugin: "{{ vars.scout_plugin }}"
         with:
@@ -159,11 +175,7 @@ jobs:
                 dir: "scout-output/"
                 timestamp: True
                 timestamp_format: "%d_%b_%Y"
-            container_settings:
-                dh_username: "{{ vars.DH_USERNAME }}"
-                dh_password: "{{ vars.DH_PASSWORD }}"
-                reg_username: "{{ vars.REGISTRY_USERNAME }}"
-                reg_password: "{{ vars.REGISTRY_PASSWORD }}"
+            container_settings: "{{ vars.scout_settings }}"
 
     scout-cves:
         plugin: "{{ vars.scout_plugin }}"
@@ -177,12 +189,9 @@ jobs:
                 dir: "scout-output/"
                 timestamp: True
                 timestamp_format: "%d_%b_%Y"
-            container_settings:
-                dh_username: "{{ vars.DH_USERNAME }}"
-                dh_password: "{{ vars.DH_PASSWORD }}"
-                reg_username: "{{ vars.REGISTRY_USERNAME }}"
-                reg_password: "{{ vars.REGISTRY_PASSWORD }}"
+            container_settings: "{{ vars.scout_settings }}"
     
+    # Use cosign to sign and verify image
     cosign-generate-keys:
         plugin: "{{ vars.cosign_plugin }}"
         with:
@@ -191,10 +200,7 @@ jobs:
                 output-key-prefix: "/keys/cosign"
             envs:
                 COSIGN_PASSWORD: "{{ vars.COSIGN_PASSWORD }}"
-            mounts:
-                - 
-                    source: "exampleKeys/"
-                    target: "/keys/"
+            mounts: "{{ vars.cosign_keys }}"
 
     cosign-sign:
         plugin: "{{ vars.cosign_plugin }}"
@@ -210,10 +216,7 @@ jobs:
                 key: "keys/cosign.key"
             envs:
                 COSIGN_PASSWORD: "{{ vars.COSIGN_PASSWORD }}"
-            mounts:
-                - 
-                    source: "exampleKeys/"
-                    target: "/keys/"
+            mounts: "{{ vars.cosign_keys }}"
 
     cosign-verify:
         plugin: "{{ vars.cosign_plugin }}"
@@ -227,10 +230,7 @@ jobs:
                 registry-password: "{{ vars.REGISTRY_PASSWORD }}"
             envs:
                 COSIGN_PASSWORD: "{{ vars.COSIGN_PASSWORD }}"
-            mounts:
-                -
-                    source: "exampleKeys/"
-                    target: "/keys/"
+            mounts: "{{ vars.cosign_keys }}"
 
 sequences:
     build-and-test:
@@ -252,14 +252,11 @@ sequences:
             - jobs:
                 - "build"
                 - "test"
-
                 - "scout-sbom"
                 - "scout-cves"
-                
                 - "cosign-generate-keys"
                 - "cosign-sign"
                 - "cosign-verify"
-
                 - "push_to_remote"
               dependencies: ["local_registry"]
     
