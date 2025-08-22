@@ -1,20 +1,31 @@
 vars:
     distro: "jazzy"
-    image: "pyrobosim_demo"
+    
+    # Plugin definitions
     dockerfile_plugin: "rigel.plugins.core.DockerfilePlugin"
     buildx_plugin: "rigel.plugins.core.BuildXPlugin"
     compose_plugin: "rigel.plugins.core.ComposePlugin"
+    skopeo_plugin: "rigel.plugins.core.SkopeoPlugin"
     test_plugin: "rigel.plugins.core.UnitTestPlugin"
     scout_plugin: "rigel.plugins.core.ScoutPlugin"
     cosign_plugin: "rigel.plugins.core.CosignPlugin"
+    
+    # Some neccessary environment variables
     REGISTRY_USERNAME: "robotair-io"
     DH_USERNAME: "abbanfahim"
     DISPLAY: ":1"
-    image_path: "ghcr.io/{{ vars.REGISTRY_USERNAME }}/{{ vars.image }}"
 
+    # Image names
+    image: "pyrobosim_demo"
+    image_path: "{{ vars.REGISTRY_USERNAME }}/{{ vars.image }}"
+    local_image_path: "localhost:5000/{{ vars.image_path }}"
+    remote_image_path: "ghcr.io/{{ vars.image_path }}"
+
+# Configure the ROS distro
 application:
     distro: "{{ vars.distro }}"
 
+# Login to the remote registry
 providers:
     container_registry_provider_1:
         provider: "rigel.providers.core.ContainerRegistryProvider"
@@ -24,6 +35,7 @@ providers:
             password: "{{ vars.REGISTRY_PASSWORD }}"
 
 jobs:
+    # Generate docker file
     dockerfile:
         plugin: "{{ vars.dockerfile_plugin }}"
         with:
@@ -64,20 +76,44 @@ jobs:
             entrypoint:
                 - "export PYTHONPATH=$PDDLSTREAM_PATH:$PYTHONPATH"
 
+    local_registry:
+        plugin: "{{ vars.compose_plugin }}"
+        with:
+            components:
+                - name: "registry"
+                  image: "registry:3.0.0"
+                  publish:
+                    - !!python/tuple [5000, 5000]
+
     build:
         plugin: "{{ vars.buildx_plugin }}"
         with:
-            image: "{{ vars.image_path }}"
+            image: "{{ vars.local_image_path }}"
             tags:
                 - "latest"
             push: True
             platforms:
                 - "linux/amd64"
 
+    push_to_remote:
+        plugin: "{{ vars.skopeo_plugin }}"
+        with:
+            image: "quay.io/skopeo/stable:v1.19.0"
+            docker_skopeo:
+                command: "copy"
+                args:
+                - "docker://{{ vars.local_image_path }}"
+                - "docker://{{ vars.remote_image_path }}"
+                flags:
+                    src-tls-verify: false
+                    insecure-policy: ""
+            runtime_settings:
+                network: "host"
+
     test:
         plugin: "{{ vars.test_plugin }}"
         with:
-            image: "{{ vars.image_path }}"
+            image: "{{ vars.local_image_path }}"
             tag: "latest"
             std_output: True
             compiler: "colcon"
@@ -90,7 +126,7 @@ jobs:
         with:
             components:
                 - name: "demo"
-                  image: "{{ vars.image_path }}"
+                  image: "{{ vars.remote_image_path }}"
                   command: ["bash", "-l", "-c", "ros2 launch pyrobosim_ros demo.launch.py"]
                   envs:
                     DISPLAY: "{{ vars.DISPLAY }}"
@@ -102,7 +138,7 @@ jobs:
         with:
             components:
                 - name: "demo"
-                  image: "{{ vars.image_path }}"
+                  image: "{{ vars.remote_image_path }}"
                   command: ["bash", "-l", "-c", "ros2 launch pyrobosim_ros demo_commands_multirobot.launch.py"]
                   envs:
                     DISPLAY: "{{ vars.DISPLAY }}"
@@ -115,7 +151,7 @@ jobs:
             docker_scout:
                 command: "sbom"
                 args:
-                    - "{{ vars.image_path }}"
+                    - "{{ vars.local_image_path }}"
                 options:
                     format: "list"
             output_settings:
@@ -135,7 +171,7 @@ jobs:
             docker_scout:
                 command: "cves"
                 args:
-                    - "{{ vars.image_path }}"
+                    - "{{ vars.local_image_path }}"
             output_settings:
                 output_to_file: True
                 dir: "scout-output/"
@@ -165,7 +201,7 @@ jobs:
         with:
             command: "sign"
             args:
-                - "{{ vars.image_path }}"
+                - "{{ vars.local_image_path }}"
             options:
                 y: True
                 r: True
@@ -184,7 +220,7 @@ jobs:
         with:
             command: "verify"
             args:
-                - "{{ vars.image_path }}"
+                - "{{ vars.local_image_path }}"
             options:
                 key: "keys/cosign.pub"
                 registry-username: "{{ vars.REGISTRY_USERNAME }}"
@@ -209,3 +245,21 @@ sequences:
                 - "cosign-generate-keys"
                 - "cosign-sign"
                 - "cosign-verify"
+    ci:
+        stages:
+            - jobs:
+                - "dockerfile"
+            - jobs:
+                - "build"
+                - "test"
+
+                - "scout-sbom"
+                - "scout-cves"
+                
+                - "cosign-generate-keys"
+                - "cosign-sign"
+                - "cosign-verify"
+
+                - "push_to_remote"
+              dependencies: ["local_registry"]
+    

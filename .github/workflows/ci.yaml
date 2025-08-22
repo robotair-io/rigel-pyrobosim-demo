@@ -23,7 +23,7 @@ jobs:
         env:
           TOKEN: ${{ secrets.PRIVATE_ACCESS_TOKEN }}
         run: |
-          git clone https://${TOKEN}@github.com/robotair-io/rigel.git --branch test/unit-test-plugin
+          git clone https://${TOKEN}@github.com/robotair-io/rigel.git --branch develop
           pip install ./rigel
       
       - name: Show Docker file generated
@@ -33,8 +33,5 @@ jobs:
 
       - name: Build, test, generate SBOM, scan for vulnerabilities, and sign ROS application using Rigel
         run: |
-          rigel run sequence build-and-test
-          rigel run job scout-sbom
-          rigel run job scout-cves
+          rigel run sequence ci
           cat scout-output/*
-          rigel run sequence sign-and-verify
