@@ -1,28 +1,51 @@
 vars:
     distro: "jazzy"
-    image: "pyrobosim_demo"
+    
+    # Plugin definitions
     dockerfile_plugin: "rigel.plugins.core.DockerfilePlugin"
     buildx_plugin: "rigel.plugins.core.BuildXPlugin"
     compose_plugin: "rigel.plugins.core.ComposePlugin"
+    skopeo_plugin: "rigel.plugins.core.SkopeoPlugin"
     test_plugin: "rigel.plugins.core.UnitTestPlugin"
     scout_plugin: "rigel.plugins.core.ScoutPlugin"
     cosign_plugin: "rigel.plugins.core.CosignPlugin"
+    
+    # Some neccessary environment variables
     REGISTRY_USERNAME: "robotair-io"
+    DH_USERNAME: "abbanfahim"
     DISPLAY: ":1"
-    image_path: "ghcr.io/{{ vars.REGISTRY_USERNAME }}/{{ vars.image }}"
 
+    # Image names
+    image: "pyrobosim_demo"
+    image_path: "{{ vars.REGISTRY_USERNAME }}/{{ vars.image }}"
+    local_image_path: "localhost:5000/{{ vars.image_path }}"
+    remote_image_path: "ghcr.io/{{ vars.image_path }}"
+
+    # Common lugin settings
+    scout_settings:
+        dh_username: "{{ vars.DH_USERNAME }}"
+        dh_password: "{{ vars.DH_PASSWORD }}"
+        reg_username: "{{ vars.REGISTRY_USERNAME }}"
+        reg_password: "{{ vars.REGISTRY_PASSWORD }}"
+    cosign_keys:
+        - source: "exampleKeys/"
+          target: "/keys/"
+
+# Configure the ROS distro
 application:
     distro: "{{ vars.distro }}"
 
+# Login to the remote registry
 providers:
     container_registry_provider_1:
         provider: "rigel.providers.core.ContainerRegistryProvider"
         with:
-            server: "https://ghcr.io/"
+            server: "https://ghcr.io/robotair-io"
             username: "{{ vars.REGISTRY_USERNAME }}"
             password: "{{ vars.REGISTRY_PASSWORD }}"
 
 jobs:
+    # Generate docker file
     dockerfile:
         plugin: "{{ vars.dockerfile_plugin }}"
         with:
@@ -63,20 +86,48 @@ jobs:
             entrypoint:
                 - "export PYTHONPATH=$PDDLSTREAM_PATH:$PYTHONPATH"
 
+    # Start a local registry server for assessing image
+    local_registry:
+        plugin: "{{ vars.compose_plugin }}"
+        with:
+            components:
+                - name: "registry"
+                  image: "registry:3.0.0"
+                  publish:
+                    - !!python/tuple [5000, 5000]
+
+    # Build and push image to local registry
     build:
         plugin: "{{ vars.buildx_plugin }}"
         with:
-            image: "{{ vars.image_path }}"
+            image: "{{ vars.local_image_path }}"
             tags:
                 - "latest"
             push: True
             platforms:
                 - "linux/amd64"
 
+    # Copy image from local to remote registry 
+    push_to_remote:
+        plugin: "{{ vars.skopeo_plugin }}"
+        with:
+            image: "quay.io/skopeo/stable:v1.19.0"
+            docker_skopeo:
+                command: "copy"
+                args:
+                - "docker://{{ vars.local_image_path }}"
+                - "docker://{{ vars.remote_image_path }}"
+                flags:
+                    src-tls-verify: false
+                    insecure-policy: ""
+            runtime_settings:
+                network: "host"
+
+    # Run unit tests on ROS application
     test:
         plugin: "{{ vars.test_plugin }}"
         with:
-            image: "{{ vars.image_path }}"
+            image: "{{ vars.local_image_path }}"
             tag: "latest"
             std_output: True
             compiler: "colcon"
@@ -84,12 +135,13 @@ jobs:
             before_script: "test/run_tests.bash"
             packages: ["pyrobosim_ros"]
 
+    # Example launch files from pyrobosim
     run-demo:
         plugin: "{{ vars.compose_plugin}}"
         with:
             components:
                 - name: "demo"
-                  image: "{{ vars.image_path }}"
+                  image: "{{ vars.remote_image_path }}"
                   command: ["bash", "-l", "-c", "ros2 launch pyrobosim_ros demo.launch.py"]
                   envs:
                     DISPLAY: "{{ vars.DISPLAY }}"
@@ -101,13 +153,45 @@ jobs:
         with:
             components:
                 - name: "demo"
-                  image: "{{ vars.image_path }}"
+                  image: "{{ vars.remote_image_path }}"
                   command: ["bash", "-l", "-c", "ros2 launch pyrobosim_ros demo_commands_multirobot.launch.py"]
                   envs:
                     DISPLAY: "{{ vars.DISPLAY }}"
                   volumes:
                     - !!python/tuple ["/tmp/.X11-unix", "/tmp/.X11-unix:rw"]
 
+    # Generate SBOM and vulnerbility report using docker scout
+    scout-sbom:
+        plugin: "{{ vars.scout_plugin }}"
+        with:
+            docker_scout:
+                command: "sbom"
+                args:
+                    - "{{ vars.local_image_path }}"
+                options:
+                    format: "list"
+            output_settings:
+                output_to_file: True
+                dir: "scout-output/"
+                timestamp: True
+                timestamp_format: "%d_%b_%Y"
+            container_settings: "{{ vars.scout_settings }}"
+
+    scout-cves:
+        plugin: "{{ vars.scout_plugin }}"
+        with:
+            docker_scout:
+                command: "cves"
+                args:
+                    - "{{ vars.local_image_path }}"
+            output_settings:
+                output_to_file: True
+                dir: "scout-output/"
+                timestamp: True
+                timestamp_format: "%d_%b_%Y"
+            container_settings: "{{ vars.scout_settings }}"
+    
+    # Use cosign to sign and verify image
     cosign-generate-keys:
         plugin: "{{ vars.cosign_plugin }}"
         with:
@@ -116,17 +200,14 @@ jobs:
                 output-key-prefix: "/keys/cosign"
             envs:
                 COSIGN_PASSWORD: "{{ vars.COSIGN_PASSWORD }}"
-            mounts:
-                - 
-                    source: "exampleKeys/"
-                    target: "/keys/"
+            mounts: "{{ vars.cosign_keys }}"
 
     cosign-sign:
         plugin: "{{ vars.cosign_plugin }}"
         with:
             command: "sign"
             args:
-                - "{{ vars.image_path }}"
+                - "{{ vars.local_image_path }}"
             options:
                 y: True
                 r: True
@@ -135,27 +216,21 @@ jobs:
                 key: "keys/cosign.key"
             envs:
                 COSIGN_PASSWORD: "{{ vars.COSIGN_PASSWORD }}"
-            mounts:
-                - 
-                    source: "exampleKeys/"
-                    target: "/keys/"
+            mounts: "{{ vars.cosign_keys }}"
 
     cosign-verify:
         plugin: "{{ vars.cosign_plugin }}"
         with:
             command: "verify"
             args:
-                - "{{ vars.image_path }}"
+                - "{{ vars.local_image_path }}"
             options:
                 key: "keys/cosign.pub"
                 registry-username: "{{ vars.REGISTRY_USERNAME }}"
                 registry-password: "{{ vars.REGISTRY_PASSWORD }}"
             envs:
                 COSIGN_PASSWORD: "{{ vars.COSIGN_PASSWORD }}"
-            mounts:
-                -
-                    source: "exampleKeys/"
-                    target: "/keys/"
+            mounts: "{{ vars.cosign_keys }}"
 
 sequences:
     build-and-test:
@@ -170,3 +245,17 @@ sequences:
                 - "cosign-generate-keys"
                 - "cosign-sign"
                 - "cosign-verify"
+    ci:
+        stages:
+            - jobs:
+                - "dockerfile"
+            - jobs:
+                - "build"
+                - "test"
+                - "scout-sbom"
+                - "cosign-generate-keys"
+                - "cosign-sign"
+                - "cosign-verify"
+                - "push_to_remote"
+              dependencies: ["local_registry"]
+    
