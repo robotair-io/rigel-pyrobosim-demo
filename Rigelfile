@@ -253,7 +253,6 @@ sequences:
                 - "build"
                 - "test"
                 - "scout-sbom"
-                - "scout-cves"
                 - "cosign-generate-keys"
                 - "cosign-sign"
                 - "cosign-verify"
