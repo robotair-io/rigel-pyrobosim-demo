@@ -28,7 +28,7 @@ rigel run job build
 To run unit tests inside the project 
 
 ```bash
-rigel run job build
+rigel run job test
 ```
 
 To run some demo nodes from `pyrobosim_ros`, modify the `DISPLAY` variable to your system's, and use the `run-demo` and `run-demo-multirobot` jobs
